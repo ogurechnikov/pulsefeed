@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestNewTrade(t *testing.T) {
+func TestTrade(t *testing.T) {
 	validTime := time.Now()
 
 	tests := []struct {
@@ -15,19 +15,99 @@ func TestNewTrade(t *testing.T) {
 		price    float64
 		quantity float64
 		dealTime time.Time
-		side     string
+		side     Side
 		wantErr  error
 	}{
-		{name: "valid trade", symbol: "BTCUSDT", price: 50000.0, quantity: 1.5, dealTime: validTime, side: "buy", wantErr: nil},
-		{name: "empty symbol", symbol: "", price: 50000.0, quantity: 1.5, dealTime: validTime, side: "buy", wantErr: ErrEmptySymbol},
-		{name: "zero price", symbol: "BTCUSDT", price: 0, quantity: 1.5, dealTime: validTime, side: "buy", wantErr: ErrInvalidPrice},
-		{name: "negative price", symbol: "BTCUSDT", price: -100.0, quantity: 1.5, dealTime: validTime, side: "buy", wantErr: ErrInvalidPrice},
-		{name: "zero quantity", symbol: "BTCUSDT", price: 50000.0, quantity: 0, dealTime: validTime, side: "buy", wantErr: ErrInvalidQty},
-		{name: "negative quantity", symbol: "BTCUSDT", price: 50000.0, quantity: -1.5, dealTime: validTime, side: "buy", wantErr: ErrInvalidQty},
-		{name: "empty side", symbol: "BTCUSDT", price: 50000.0, quantity: 1.5, dealTime: validTime, side: "", wantErr: ErrEmptySide},
-		{name: "all fields invalid", symbol: "", price: 0, quantity: 0, dealTime: validTime, side: "", wantErr: ErrEmptySymbol},
-		{name: "fractional values", symbol: "ETHUSDT", price: 0.00001, quantity: 0.001, dealTime: validTime, side: "sell", wantErr: nil},
-		{name: "large values", symbol: "BTCUSDT", price: 999999.99, quantity: 1000.5, dealTime: validTime, side: "buy", wantErr: nil},
+		{
+			name:     "valid trade",
+			symbol:   "BTCUSDT",
+			price:    50000.0,
+			quantity: 1.5,
+			dealTime: validTime,
+			side:     SideBuy,
+			wantErr:  nil,
+		},
+		{
+			name:     "empty symbol",
+			symbol:   "",
+			price:    50000.0,
+			quantity: 1.5,
+			dealTime: validTime,
+			side:     SideBuy,
+			wantErr:  ErrEmptySymbol,
+		},
+		{
+			name:     "zero price",
+			symbol:   "BTCUSDT",
+			price:    0,
+			quantity: 1.5,
+			dealTime: validTime,
+			side:     SideBuy,
+			wantErr:  ErrInvalidPrice,
+		},
+		{
+			name:     "negative price",
+			symbol:   "BTCUSDT",
+			price:    -100.0,
+			quantity: 1.5,
+			dealTime: validTime,
+			side:     SideBuy,
+			wantErr:  ErrInvalidPrice,
+		},
+		{
+			name:     "zero quantity",
+			symbol:   "BTCUSDT",
+			price:    50000.0,
+			quantity: 0,
+			dealTime: validTime,
+			side:     SideBuy,
+			wantErr:  ErrInvalidQty,
+		},
+		{
+			name:     "negative quantity",
+			symbol:   "BTCUSDT",
+			price:    50000.0,
+			quantity: -1.5,
+			dealTime: validTime,
+			side:     SideBuy,
+			wantErr:  ErrInvalidQty,
+		},
+		{
+			name:     "empty side",
+			symbol:   "BTCUSDT",
+			price:    50000.0,
+			quantity: 1.5,
+			dealTime: validTime,
+			side:     SideUnknown,
+			wantErr:  ErrUnknownSide,
+		},
+		{
+			name:     "all fields invalid",
+			symbol:   "",
+			price:    0,
+			quantity: 0,
+			dealTime: validTime,
+			side:     SideUnknown,
+			wantErr:  ErrEmptySymbol,
+		},
+		{
+			name:     "fractional values",
+			symbol:   "ETHUSDT",
+			price:    0.00001,
+			quantity: 0.001,
+			dealTime: validTime,
+			side:     SideSell,
+			wantErr:  nil,
+		},
+		{
+			name:     "large values",
+			symbol:   "BTCUSDT",
+			price:    999999.99,
+			quantity: 1000.5,
+			dealTime: validTime,
+			side:     SideBuy,
+			wantErr:  nil,
+		},
 	}
 
 	for _, tt := range tests {

@@ -16,8 +16,8 @@ var (
 	ErrInvalidQty = fmt.Errorf(
 		"%w: quantity must be greater than zero",
 		errs.ErrValidation)
-	ErrEmptySide = fmt.Errorf(
-		"%w: side is empty",
+	ErrUnknownSide = fmt.Errorf(
+		"%w: side is unknown",
 		errs.ErrValidation)
 )
 
@@ -26,7 +26,7 @@ type Trade struct {
 	price    float64
 	quantity float64
 	dealTime time.Time
-	side     string
+	side     Side
 }
 
 func NewTrade(
@@ -34,7 +34,7 @@ func NewTrade(
 	price float64,
 	quantity float64,
 	dealtime time.Time,
-	side string,
+	side Side,
 ) (*Trade, error) {
 	if symbol == "" {
 		return nil, ErrEmptySymbol
@@ -45,8 +45,8 @@ func NewTrade(
 	if quantity <= 0 {
 		return nil, ErrInvalidQty
 	}
-	if side == "" {
-		return nil, ErrEmptySide
+	if side == SideUnknown {
+		return nil, ErrUnknownSide
 	}
 
 	trade := &Trade{
@@ -77,6 +77,6 @@ func (t *Trade) DealTime() time.Time {
 	return t.dealTime
 }
 
-func (t *Trade) Side() string {
+func (t *Trade) Side() Side {
 	return t.side
 }
