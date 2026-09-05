@@ -80,3 +80,10 @@ func (t *Trade) DealTime() time.Time {
 func (t *Trade) Side() Side {
 	return t.side
 }
+
+func (t Trade) String() string {
+	return fmt.Sprintf(
+		"%s %s %.8f @ %.2f (%s)",
+		t.symbol, t.side, t.quantity, t.price, t.dealTime.Format(time.RFC3339),
+	)
+}
