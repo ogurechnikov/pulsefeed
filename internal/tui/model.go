@@ -1,11 +1,15 @@
 package tui
 
 import (
+	"fmt"
+	"os"
 	"pulsefeed/internal/aggregator"
 	"pulsefeed/internal/domain"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/NimbleMarkets/ntcharts/v2/linechart"
 	"github.com/NimbleMarkets/ntcharts/v2/linechart/streamlinechart"
 )
 
@@ -16,6 +20,9 @@ type Model struct {
 	chart         streamlinechart.Model
 	lastPointTime time.Time
 	width, height int
+	chartWidth    int
+	tradeWidth    int
+	contentHeight int
 }
 
 func NewModel(snapshots <-chan aggregator.Snapshot) Model {
@@ -31,6 +38,19 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.chartWidth = m.width * 80 / 100
+		m.tradeWidth = m.width - m.chartWidth
+		m.contentHeight = m.height - 4
+
+		m.chart = streamlinechart.New(m.chartWidth, m.contentHeight)
+		for _, p := range m.pricePoints {
+			m.chart.Push(p.Price)
+		}
+		m.chart.Draw()
+
 	case snapshotMsg:
 		m.trades = msg.RecentTrades
 		m.pricePoints = msg.PricePoints
@@ -38,9 +58,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(msg.PricePoints) > 0 {
 			latest := msg.PricePoints[len(msg.PricePoints)-1]
 			if latest.Time.After(m.lastPointTime) {
+				m.lastPointTime = latest.Time
 				m.chart.Push(latest.Price)
 				m.chart.Draw()
-				m.lastPointTime = latest.Time
 			}
 		}
 		return m, waitForSnapshot(m.snapshots)
@@ -57,7 +77,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
-	view := tea.NewView(m.chart.View())
+
+	title := lipgloss.NewStyle().Bold(true).Render("PulseFeed")
+
+	chartPanel := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(m.chartWidth).
+		Height(m.contentHeight).
+		Render(m.chart.View())
+
+	tradesPanel := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(m.tradeWidth).
+		Height(m.contentHeight).
+		Render(renderTrades(m.trades))
+
+	middle := lipgloss.JoinHorizontal(lipgloss.Top, chartPanel, tradesPanel)
+
+	footer := lipgloss.NewStyle().Faint(true).Render("q: quit")
+
+	content := lipgloss.JoinVertical(lipgloss.Left, title, middle, footer)
+
+	view := tea.NewView(content)
 	view.AltScreen = true
+
 	return view
 }
