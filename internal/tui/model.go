@@ -1,28 +1,26 @@
 package tui
 
 import (
-	"fmt"
-	"os"
 	"pulsefeed/internal/aggregator"
 	"pulsefeed/internal/domain"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/NimbleMarkets/ntcharts/v2/linechart"
 	"github.com/NimbleMarkets/ntcharts/v2/linechart/streamlinechart"
 )
 
 type Model struct {
-	snapshots     <-chan aggregator.Snapshot
-	trades        []domain.Trade
-	pricePoints   []aggregator.PricePoint
-	chart         streamlinechart.Model
-	lastPointTime time.Time
-	width, height int
-	chartWidth    int
-	tradeWidth    int
-	contentHeight int
+	snapshots        <-chan aggregator.Snapshot
+	trades           []domain.Trade
+	pricePoints      []aggregator.PricePoint
+	chart            streamlinechart.Model
+	lastPointTime    time.Time
+	width, height    int
+	chartWidth       int
+	tradeWidth       int
+	contentHeight    int
+	rangeInitialized bool
 }
 
 func NewModel(snapshots <-chan aggregator.Snapshot) Model {
@@ -46,6 +44,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.contentHeight = m.height - 4
 
 		m.chart = streamlinechart.New(m.chartWidth, m.contentHeight)
+		if len(m.pricePoints) > 0 {
+			min, max := m.pricePoints[0].Price, m.pricePoints[0].Price
+			for _, p := range m.pricePoints {
+				if p.Price < min {
+					min = p.Price
+				}
+				if p.Price > max {
+					max = p.Price
+				}
+			}
+			m.chart.SetYRange(min*0.999, max*1.001)
+			m.chart.SetViewYRange(min*0.999, max*1.001)
+			m.rangeInitialized = true
+		} else {
+			m.rangeInitialized = false
+		}
 		for _, p := range m.pricePoints {
 			m.chart.Push(p.Price)
 		}
@@ -59,6 +73,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			latest := msg.PricePoints[len(msg.PricePoints)-1]
 			if latest.Time.After(m.lastPointTime) {
 				m.lastPointTime = latest.Time
+				if !m.rangeInitialized {
+					m.chart.SetYRange(latest.Price*0.999, latest.Price*1.001)
+					m.chart.SetViewYRange(latest.Price*0.999, latest.Price*1.001)
+					m.rangeInitialized = true
+				}
 				m.chart.Push(latest.Price)
 				m.chart.Draw()
 			}
