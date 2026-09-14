@@ -7,12 +7,14 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/NimbleMarkets/ntcharts/v2/canvas/runes"
 	"github.com/NimbleMarkets/ntcharts/v2/linechart/streamlinechart"
 )
 
 type Model struct {
 	snapshots        <-chan aggregator.Snapshot
-	trades           []domain.Trade
+	buyTrades        []domain.Trade
+	sellTrades       []domain.Trade
 	pricePoints      []aggregator.PricePoint
 	chart            streamlinechart.Model
 	lastPointTime    time.Time
@@ -20,6 +22,7 @@ type Model struct {
 	chartWidth       int
 	tradeWidth       int
 	contentHeight    int
+	limit            int
 	rangeInitialized bool
 }
 
@@ -27,6 +30,7 @@ func NewModel(snapshots <-chan aggregator.Snapshot) Model {
 	return Model{
 		snapshots: snapshots,
 		chart:     streamlinechart.New(80, 20),
+		limit:     10,
 	}
 }
 
@@ -41,9 +45,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.chartWidth = m.width * 80 / 100
 		m.tradeWidth = m.width - m.chartWidth
-		m.contentHeight = m.height - 4
 
-		m.chart = streamlinechart.New(m.chartWidth, m.contentHeight)
+		const standardLimit = 10
+		const standardContentHeight = 2*(standardLimit+3) - 2 // = 24
+
+		available := m.height - 4
+		m.limit = standardLimit
+		if available < standardContentHeight {
+			m.limit = max((available+2)/2-3, 0)
+		}
+
+		m.contentHeight = 2*(m.limit+3) - 2
+
+		m.chart = streamlinechart.New(m.chartWidth-2, m.contentHeight)
+		m.chart.SetStyles(runes.ArcLineStyle, lipgloss.NewStyle().Foreground(lipgloss.Green))
+
 		if len(m.pricePoints) > 0 {
 			min, max := m.pricePoints[0].Price, m.pricePoints[0].Price
 			for _, p := range m.pricePoints {
@@ -66,7 +82,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.chart.Draw()
 
 	case snapshotMsg:
-		m.trades = msg.RecentTrades
+		m.buyTrades = msg.BuyTrades
+		m.sellTrades = msg.SellTrades
 		m.pricePoints = msg.PricePoints
 
 		if len(msg.PricePoints) > 0 {
@@ -96,7 +113,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
-
 	title := lipgloss.NewStyle().Bold(true).Render("PulseFeed")
 
 	chartPanel := lipgloss.NewStyle().
@@ -105,11 +121,19 @@ func (m Model) View() tea.View {
 		Height(m.contentHeight).
 		Render(m.chart.View())
 
-	tradesPanel := lipgloss.NewStyle().
+	tradesPanelSell := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Width(m.tradeWidth).
-		Height(m.contentHeight).
-		Render(renderTrades(m.trades))
+		Height(m.limit + 1).
+		Render(renderTradeBlock("SELL", m.sellTrades, m.limit))
+
+	tradesPanelBuy := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(m.tradeWidth).
+		Height(m.limit + 1).
+		Render(renderTradeBlock("BUY", m.buyTrades, m.limit))
+
+	tradesPanel := lipgloss.JoinVertical(lipgloss.Left, tradesPanelSell, tradesPanelBuy)
 
 	middle := lipgloss.JoinHorizontal(lipgloss.Top, chartPanel, tradesPanel)
 

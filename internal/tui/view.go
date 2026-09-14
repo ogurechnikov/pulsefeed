@@ -17,10 +17,32 @@ func formatTradeLine(t domain.Trade) string {
 	return style.Render(fmt.Sprintf("%s %.2f", label, t.Price()))
 }
 
-func renderTrades(trades []domain.Trade) string {
-	var lines []string
+func renderTradeBlock(title string, trades []domain.Trade, limit int) string {
+	if limit < 0 {
+		limit = 0
+	}
+
+	if len(trades) > limit {
+		trades = trades[len(trades)-limit:]
+	}
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Green)
+	if title == "SELL" {
+		titleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Red)
+	}
+
+	lines := []string{titleStyle.Render(title)}
+
 	for _, t := range trades {
 		lines = append(lines, formatTradeLine(t))
+	}
+
+	for len(lines) < limit+1 {
+		lines = append(lines, "")
 	}
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
 }
