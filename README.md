@@ -17,13 +17,21 @@ recent buy/sell orders — all inside your terminal.
 ## Architecture
 
 Binance WebSocket
+
 ↓
+
 internal/ingest/binance — WS client, DTO, mapping to domain.Trade
+
 ↓
+
 internal/domain — Trade, Side value object (validated, tested)
+
 ↓
+
 internal/aggregator — ring buffers, price sampling, Snapshot channel
+
 ↓
+
 internal/tui — Bubble Tea dashboard (chart + trade feeds)
 
 
