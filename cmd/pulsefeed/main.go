@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"pulsefeed/internal/aggregator"
 	"pulsefeed/internal/ingest/binance"
+	"pulsefeed/internal/tui"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 func main() {
@@ -16,19 +20,20 @@ func main() {
 
 	trades, errs := client.Trades(ctx, "BTCUSDT")
 
-	for {
+	agg := aggregator.NewAggregator()
+	snapshots := agg.Run(ctx, trades)
+
+	go func() {
 		select {
-		case trade, ok := <-trades:
-			if !ok {
-				return
-			}
-			fmt.Println(trade)
 		case err, ok := <-errs:
-			if !ok {
-				continue
+			if ok {
+				fmt.Println("connection error:", err)
+				stop()
 			}
-			fmt.Println("error: ", err)
-			return
+		case <-ctx.Done():
 		}
-	}
+	}()
+
+	model := tui.NewModel(snapshots)
+	tea.NewProgram(model).Run()
 }

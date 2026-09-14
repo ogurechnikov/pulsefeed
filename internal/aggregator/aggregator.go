@@ -13,19 +13,22 @@ type PricePoint struct {
 }
 
 type Snapshot struct {
-	RecentTrades []domain.Trade
-	PricePoints  []PricePoint
+	BuyTrades   []domain.Trade
+	SellTrades  []domain.Trade
+	PricePoints []PricePoint
 }
 
 type Aggregator struct {
-	trades      []domain.Trade
+	buyTrades   []domain.Trade
+	sellTrades  []domain.Trade
 	pricePoints []PricePoint
 	recentPrice float64
 }
 
 func NewAggregator() *Aggregator {
 	return &Aggregator{
-		trades:      make([]domain.Trade, 0, 20),
+		buyTrades:   make([]domain.Trade, 0, 100),
+		sellTrades:  make([]domain.Trade, 0, 100),
 		pricePoints: make([]PricePoint, 0, 60),
 	}
 }
@@ -43,10 +46,18 @@ func (a *Aggregator) Run(
 		for {
 			select {
 			case trade := <-trades:
-				a.trades = append(a.trades, trade)
-				if len(a.trades) > 20 {
-					a.trades = a.trades[1:]
+				if trade.Side().IsBuy() {
+					a.buyTrades = append(a.buyTrades, trade)
+					if len(a.buyTrades) > 100 {
+						a.buyTrades = a.buyTrades[1:]
+					}
+				} else {
+					a.sellTrades = append(a.sellTrades, trade)
+					if len(a.sellTrades) > 100 {
+						a.sellTrades = a.sellTrades[1:]
+					}
 				}
+
 				a.recentPrice = trade.Price()
 				snapshots <- a.snapshot()
 			case <-ticker.C:
@@ -75,7 +86,8 @@ func (a *Aggregator) Run(
 
 func (a *Aggregator) snapshot() Snapshot {
 	return Snapshot{
-		RecentTrades: slices.Clone(a.trades),
-		PricePoints:  slices.Clone(a.pricePoints),
+		BuyTrades:   slices.Clone(a.buyTrades),
+		SellTrades:  slices.Clone(a.sellTrades),
+		PricePoints: slices.Clone(a.pricePoints),
 	}
 }
